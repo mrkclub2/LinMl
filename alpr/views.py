@@ -12,6 +12,8 @@ import pyzm.helpers.utils as pyzmutils
 import ast
 import pyzm.api as zmapi
 
+
+# ALPR object detection
 class Detect(APIView):
     def post(self, request, *args, **kwargs):
         DetectSequence()

@@ -2,4 +2,4 @@ Django==5.0.1
 djangorestframework==3.14.0
 djangorestframework-simplejwt==5.3.1
 pyzm==0.3.64
-opencv-python==4.9.0.80
+ultralytics==8.1.9
