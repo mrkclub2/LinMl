@@ -3,3 +3,6 @@ djangorestframework==3.14.0
 djangorestframework-simplejwt==5.3.1
 pyzm==0.3.64
 ultralytics==8.1.9
+opencv-python~=4.9.0.80
+requests~=2.31.0
+numpy~=1.26.3

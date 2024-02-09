@@ -1,9 +1,13 @@
+from alpr.serializers import AlprDetectionSerializer
+from django.core.files.storage import FileSystemStorage
 from rest_framework.views import APIView
+from rest_framework import status
 from django.http import JsonResponse
 from ultralytics import YOLO
 import time
 import math
 import cv2
+import numpy as np
 
 
 class Detect(APIView):
@@ -26,9 +30,17 @@ class Detect(APIView):
         print(end_time - start_time)
 
     def post(self, request, *args, **kwargs):
-        source = 'alpr/assets/car1.jpg'
-        output = self.object_model(source, show=False, conf=0.75)
+        start_processing = time.time()
+        # source = 'alpr/assets/car1.jpg'
+        # f = open(request.Files['upload'], 'r')
+        source = request.FILES['upload']
+        FileSystemStorage(location="/tmp").save(source.name, source)
+        print(source.name)
+        source = '/tmp/{0}'.format(source.name)
         img = cv2.imread(source)
+        output = self.object_model(source)
+
+        results = []
 
         # extract bounding box and class names
         for i in output:
@@ -52,7 +64,9 @@ class Detect(APIView):
                     # crop plate from frame
                     plate_img = img[y1:y2, x1:x2]
                     # detect characters of plate with yolov8n model
-                    plate_output = self.character_model(plate_img, conf=0.4)
+                    plate_output = self.character_model(plate_img)
+
+                    # print(plate_output[0].boxes)
 
                     # extract bounding box and class names
                     bbox = plate_output[0].boxes.xyxy
@@ -77,4 +91,13 @@ class Detect(APIView):
                                     fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=0.5, color=(10, 50, 255), thickness=1,
                                     lineType=cv2.LINE_AA)
 
-                        return JsonResponse({'plate number:': str(char_result)})
+                        box = {'xmin': x1, 'ymin': y1, 'xmax': x2, 'ymax': y2}
+                        results.append({'box': box, 'plate': str(char_result),
+                                        'score': math.ceil(np.mean(plate_output[0].boxes.conf.tolist()) * 100) / 100,
+                                        'dscore': confs})
+
+        end_processing = time.time()
+        serializer = AlprDetectionSerializer(
+            data={'results': results, 'processing_time': float(end_processing - start_processing)})
+        if serializer.is_valid(raise_exception=True):
+            return JsonResponse(serializer.data, status=status.HTTP_200_OK)
