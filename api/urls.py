@@ -6,5 +6,6 @@ from alpr.views import Detect
 urlpatterns = [
     path('logins/', Login.as_view()),
     path('health/', HealthCheck.as_view()),
-    path('plate-reader/', Detect.as_view()),
+    path('plate-reader', Detect.as_view()),
+
 ]

@@ -26,17 +26,17 @@ class Detect(APIView):
         self.object_model = object_model
         self.character_model = character_model
         self.char_classnames = char_classnames
-        end_time = time.time()
-        print(end_time - start_time)
 
     def post(self, request, *args, **kwargs):
         start_processing = time.time()
         # source = 'alpr/assets/car1.jpg'
         # f = open(request.Files['upload'], 'r')
         source = request.FILES['upload']
-        FileSystemStorage(location="/tmp").save(source.name, source)
+        # FileSystemStorage(location="/tmp").save(source.name, source)
+        FileSystemStorage(location="/home/kokhaie/Pictures").save(source.name, source)
+
         print(source.name)
-        source = '/tmp/{0}'.format(source.name)
+        source = '/home/kokhaie/Pictures/{0}'.format(source.name)
         img = cv2.imread(source)
         output = self.object_model(source)
 
@@ -81,6 +81,7 @@ class Detect(APIView):
                         char_class = i[0]
                         # char_display.append(plate_output[0].names[char_class])
                         char_display.append(self.char_classnames[char_class])
+
                     char_result = (''.join(char_display))
 
                     # just show the correct characters in output
@@ -100,4 +101,5 @@ class Detect(APIView):
         serializer = AlprDetectionSerializer(
             data={'results': results, 'processing_time': float(end_processing - start_processing)})
         if serializer.is_valid(raise_exception=True):
+            print(serializer.data)
             return JsonResponse(serializer.data, status=status.HTTP_200_OK)
