@@ -39,7 +39,7 @@ class Login(APIView):
 
 # simple health_check just for django response
 class HealthCheck(APIView):
-    permission_classes = [IsAuthenticated]
+    # permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
         return JsonResponse({'status': 'healthy'}, status=status.HTTP_200_OK)
@@ -47,7 +47,7 @@ class HealthCheck(APIView):
 
 # object_detection Apiview
 class DetectObject(APIView):
-    permission_classes = [IsAuthenticated]
+    # permission_classes = [IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
         return JsonResponse({'status': 'detect object view created'}, status=status.HTTP_200_OK)
