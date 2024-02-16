@@ -1,9 +1,14 @@
+import uuid
+
+from django.core.files.base import ContentFile
+
 from alpr.serializers import AlprDetectionSerializer
 from django.core.files.storage import FileSystemStorage
 from rest_framework.views import APIView
 from rest_framework import status
 from django.http import JsonResponse
 from ultralytics import YOLO
+from alpr.models import LicencePlate
 import time
 import math
 import cv2
@@ -14,57 +19,56 @@ class Detect(APIView):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        start_time = time.time()
-
         object_model = YOLO('alpr/assets/best.pt')
         character_model = YOLO('model/best.pt')
-        # char_classnames = ['0', '9', 'b', 'd', 'ein', 'ein', 'g', 'gh', 'h', 'n', 's', '1', 'malul', 'n', 's', 'sad',
-        #                    't',
-        #                    'ta',
-        #                    'v', 'y', '2'
-        #     , '3', '4', '5', '6', '7', '8']
         self.object_model = object_model
         self.character_model = character_model
-        # self.char_classnames = char_classnames
-        end_time = time.time()
-        print(end_time - start_time)
 
     def post(self, request, *args, **kwargs):
         start_processing = time.time()
-        # source = 'alpr/assets/car1.jpg'
-        # f = open(request.Files['upload'], 'r')
         source = request.FILES['upload']
         FileSystemStorage(location="/tmp").save(source.name, source)
-        print(source.name)
+        licence_plate = LicencePlate.objects.create(initial_image=source)
         source = '/tmp/{0}'.format(source.name)
         img = cv2.imread(source)
         output = self.object_model(source)
 
         results = []
-
         # extract bounding box and class names
+
         for i in output:
             bbox = i.boxes
+
+            # if 0 in list(map(int, bbox.cls.tolist())):
+            #     print('car detected')
+            # if 1 in list(map(int, bbox.cls.tolist())):
+            #     print('plate detected')
+
             for box in bbox:
                 x1, y1, x2, y2 = box.xyxy[0]
                 x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
                 cv2.rectangle(img, (x1, y1), (x2, y2), (255, 0, 0), 1)
                 confs = math.ceil((box.conf[0] * 100)) / 100
+
+                # convert detected object ids to int
                 cls_names = int(box.cls[0])
                 if cls_names == 1:
                     cv2.putText(img, f'{confs}', (max(40, x2 + 5), max(40, y2 + 5)), fontFace=cv2.FONT_HERSHEY_TRIPLEX,
                                 fontScale=0.5, color=(0, 20, 255), thickness=1, lineType=cv2.LINE_AA)
+
                 elif cls_names == 0:
                     cv2.putText(img, f'{confs}', (max(40, x1), max(40, y1)), fontFace=cv2.FONT_HERSHEY_TRIPLEX,
                                 fontScale=0.6, color=(0, 20, 255), thickness=1, lineType=cv2.LINE_AA)
-
-                # check plate to recognize characters with yolov8n model
+                # check plate to recognize characters with YOLO model
                 if cls_names == 1:
                     char_display = []
                     # crop plate from frame
                     plate_img = img[y1:y2, x1:x2]
-                    # detect characters of plate with yolov8n model
+                    ret, buf = cv2.imencode('.jpg', plate_img)
+                    # detect characters of plate with YOLO model
+
                     plate_output = self.character_model(plate_img)
+                    licence_plate.plate_image.save(str(uuid.uuid4().hex), ContentFile(buf.tobytes()), save=False)
 
                     # print(plate_output[0].boxes)
 
@@ -75,20 +79,16 @@ class Detect(APIView):
                     keys = cls.cpu().numpy().astype(int)
                     values = bbox[:, 0].cpu().numpy().astype(int)
                     dictionary = list(zip(keys, values))
-                    print(dictionary)
                     sorted_list = sorted(dictionary, key=lambda x: x[1])
-                    print(sorted_list)
-                    print(self.character_model.names)
 
                     # convert all characters to a string
-                    for i in sorted_list:
-                        char_class = i[0]
+                    for char in sorted_list:
+                        char_class = char[0]
                         # char_display.append(plate_output[0].names[char_class])
                         char_display.append(self.character_model.names[char_class])
                     char_result = (''.join(char_display))
 
                     # just show the correct characters in output
-                    print('len' + str(len(char_display)))
                     if len(char_display) >= 8:
                         cv2.line(img, (max(40, x1 - 25), max(40, y1 - 10)), (x2 + 25, y1 - 10), (0, 0, 0), 20,
                                  lineType=cv2.LINE_AA)
@@ -100,6 +100,12 @@ class Detect(APIView):
                         results.append({'box': box, 'plate': str(char_result),
                                         'score': math.ceil(np.mean(plate_output[0].boxes.conf.tolist()) * 100) / 100,
                                         'dscore': confs})
+                        licence_plate.plate_number = char_result
+                        licence_plate.identified = True
+                        ret, buf = cv2.imencode('.jpg', img)
+                        licence_plate.processed_image.save(str(uuid.uuid4().hex) + '.jpg', ContentFile(buf.tobytes()),
+                                                           save=False)
+                    licence_plate.save()
 
         end_processing = time.time()
         serializer = AlprDetectionSerializer(

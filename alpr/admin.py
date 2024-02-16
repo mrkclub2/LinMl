@@ -1,3 +1,4 @@
 from django.contrib import admin
+from alpr.models import LicencePlate
 
-# Register your models here.
+admin.site.register(LicencePlate)
