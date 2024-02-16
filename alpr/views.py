@@ -21,6 +21,9 @@ class Detect(APIView):
         super().__init__(**kwargs)
         object_model = YOLO('alpr/assets/best.pt')
         character_model = YOLO('model/best.pt')
+        self.char_classes = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹', 'ب', 'د', 'ع', 'ه', 'ج', 'ل', 'م', 'ن',
+                             'ق', 'ص', 'س', 'ط', 'ت', 'و', 'ی', 'معلول'
+                             ]
         self.object_model = object_model
         self.character_model = character_model
 
@@ -68,7 +71,8 @@ class Detect(APIView):
                     # detect characters of plate with YOLO model
 
                     plate_output = self.character_model(plate_img)
-                    licence_plate.plate_image.save(str(uuid.uuid4().hex), ContentFile(buf.tobytes()), save=False)
+                    licence_plate.plate_image.save(str(uuid.uuid4().hex) + '.jpg', ContentFile(buf.tobytes()),
+                                                   save=False)
 
                     # print(plate_output[0].boxes)
 

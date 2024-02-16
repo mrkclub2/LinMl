@@ -12,4 +12,4 @@ class LicencePlate(models.Model):
         if self.plate_number:
             return self.plate_number
         else:
-            return 'unknown plate number'
+            return str(self.id) + ') unknown plate number'
