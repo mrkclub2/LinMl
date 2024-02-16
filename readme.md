@@ -8,7 +8,20 @@ Features
 - Monitors
 - Configs
 - Direct access to ML algorithms
-
+ 'sequence': [{
+                                # if max_size is specified, not matter what
+                                # the resize value in stream_options, it will be rescaled down to this
+                                # value if needed
+                                'max_size':800,
+                                'face_detection_framework': 'dlib',
+                                'known_images_path': '/var/lib/zmeventnotification/known_faces',
+                                'face_model': 'cnn',
+                                'face_train_model': 'cnn',
+                                'face_recog_dist_threshold': 0.6,
+                                'face_num_jitters': 1,
+                                'face_upsample_times':1
+                            }]
+                        },
 ## ALPR config
  can be used with mlapi or pyzm 
 
