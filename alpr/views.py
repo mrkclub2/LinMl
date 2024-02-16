@@ -17,15 +17,15 @@ class Detect(APIView):
         start_time = time.time()
 
         object_model = YOLO('alpr/assets/best.pt')
-        character_model = YOLO('alpr/assets/yolov8n_char_new.pt')
-        char_classnames = ['0', '9', 'b', 'd', 'ein', 'ein', 'g', 'gh', 'h', 'n', 's', '1', 'malul', 'n', 's', 'sad',
-                           't',
-                           'ta',
-                           'v', 'y', '2'
-            , '3', '4', '5', '6', '7', '8']
+        character_model = YOLO('model/best.pt')
+        # char_classnames = ['0', '9', 'b', 'd', 'ein', 'ein', 'g', 'gh', 'h', 'n', 's', '1', 'malul', 'n', 's', 'sad',
+        #                    't',
+        #                    'ta',
+        #                    'v', 'y', '2'
+        #     , '3', '4', '5', '6', '7', '8']
         self.object_model = object_model
         self.character_model = character_model
-        self.char_classnames = char_classnames
+        # self.char_classnames = char_classnames
         end_time = time.time()
         print(end_time - start_time)
 
@@ -75,16 +75,21 @@ class Detect(APIView):
                     keys = cls.cpu().numpy().astype(int)
                     values = bbox[:, 0].cpu().numpy().astype(int)
                     dictionary = list(zip(keys, values))
+                    print(dictionary)
                     sorted_list = sorted(dictionary, key=lambda x: x[1])
+                    print(sorted_list)
+                    print(self.character_model.names)
+
                     # convert all characters to a string
                     for i in sorted_list:
                         char_class = i[0]
                         # char_display.append(plate_output[0].names[char_class])
-                        char_display.append(self.char_classnames[char_class])
+                        char_display.append(self.character_model.names[char_class])
                     char_result = (''.join(char_display))
 
                     # just show the correct characters in output
-                    if len(char_display) == 8:
+                    print('len' + str(len(char_display)))
+                    if len(char_display) >= 8:
                         cv2.line(img, (max(40, x1 - 25), max(40, y1 - 10)), (x2 + 25, y1 - 10), (0, 0, 0), 20,
                                  lineType=cv2.LINE_AA)
                         cv2.putText(img, char_result, (max(40, x1 - 15), max(40, y1 - 5)),
