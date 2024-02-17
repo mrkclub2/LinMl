@@ -30,9 +30,12 @@ class Detect(APIView):
     def post(self, request, *args, **kwargs):
         start_processing = time.time()
         source = request.FILES['upload']
-        FileSystemStorage(location="/tmp").save(source.name, source)
+        FileSystemStorage(location="/home/kokhaie/Pictures").save(source.name, source)
+        # FileSystemStorage(location="/tmp").save(source.name, source)
         licence_plate = LicencePlate.objects.create(initial_image=source)
-        source = '/tmp/{0}'.format(source.name)
+        # source = '/tmp/{0}'.format(source.name)
+        source = '/home/kokhaie/Pictures/{0}'.format(source.name)
+
         img = cv2.imread(source)
         output = self.object_model(source)
 
@@ -100,12 +103,18 @@ class Detect(APIView):
                                     fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=0.5, color=(10, 50, 255), thickness=1,
                                     lineType=cv2.LINE_AA)
 
+                        score = math.ceil(np.mean(plate_output[0].boxes.conf.tolist()) * 100) / 100
                         box = {'xmin': x1, 'ymin': y1, 'xmax': x2, 'ymax': y2}
                         results.append({'box': box, 'plate': str(char_result),
-                                        'score': math.ceil(np.mean(plate_output[0].boxes.conf.tolist()) * 100) / 100,
+                                        'score': score,
                                         'dscore': confs})
+                        if score >= 0.7:
+                            licence_plate.identified = True
+
                         licence_plate.plate_number = char_result
-                        licence_plate.identified = True
+                        licence_plate.score = str(score)
+                        licence_plate.dscore = str(confs)
+
                         ret, buf = cv2.imencode('.jpg', img)
                         licence_plate.processed_image.save(str(uuid.uuid4().hex) + '.jpg', ContentFile(buf.tobytes()),
                                                            save=False)
@@ -114,5 +123,6 @@ class Detect(APIView):
         end_processing = time.time()
         serializer = AlprDetectionSerializer(
             data={'results': results, 'processing_time': float(end_processing - start_processing)})
+        print(serializer.data)
         if serializer.is_valid(raise_exception=True):
             return JsonResponse(serializer.data, status=status.HTTP_200_OK)
