@@ -13,6 +13,6 @@ class LicencePlate(models.Model):
 
     def __str__(self):
         if self.plate_number:
-            return self.plate_number
+            return self.plate_number + ' --> ' + str(self.time.strftime("%Y-%m-%d %H:%M:%S"))
         else:
-            return str(self.id) + ') unknown plate number'
+            return str(self.id) + ') unknown plate number' + ' --> ' + str(self.time.strftime("%Y-%m-%d %H:%M:%S"))
