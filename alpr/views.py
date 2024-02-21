@@ -20,10 +20,16 @@ class Detect(APIView):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         object_model = YOLO('alpr/assets/best.pt')
-        character_model = YOLO('model/best.pt')
-        self.char_classes = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹', 'ب', 'د', 'ع', 'ه', 'ج', 'ل', 'م', 'ن',
-                             'ق', 'ص', 'س', 'ط', 'ت', 'و', 'ی', 'معلول'
-                             ]
+        # character_model = YOLO('model/best.pt')
+        character_model = YOLO('alpr/assets/yolov8n_char_new.pt')
+        self.char_classnames = ['0', '9', 'b', 'd', 'ein', 'ein', 'g', 'gh', 'h', 'n', 's', '1', 'malul', 'n', 's', 'sad',
+                           't',
+                           'ta',
+                           'v', 'y', '2'
+            , '3', '4', '5', '6', '7', '8']
+        # self.char_classes = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹', 'ب', 'د', 'ع', 'ه', 'ج', 'ل', 'م', 'ن',
+        #                      'ق', 'ص', 'س', 'ط', 'ت', 'و', 'ی', 'معلول'
+        #                      ]
         self.object_model = object_model
         self.character_model = character_model
 
@@ -92,7 +98,8 @@ class Detect(APIView):
                     for char in sorted_list:
                         char_class = char[0]
                         # char_display.append(plate_output[0].names[char_class])
-                        char_display.append(self.character_model.names[char_class])
+                        char_display.append(self.char_classnames[char_class])
+                        # char_display.append(self.character_model.names[char_class])
                     char_result = (''.join(char_display))
 
                     # just show the correct characters in output
@@ -123,6 +130,6 @@ class Detect(APIView):
         end_processing = time.time()
         serializer = AlprDetectionSerializer(
             data={'results': results, 'processing_time': float(end_processing - start_processing)})
-        print(serializer.data)
         if serializer.is_valid(raise_exception=True):
+            print(serializer.data)
             return JsonResponse(serializer.data, status=status.HTTP_200_OK)
