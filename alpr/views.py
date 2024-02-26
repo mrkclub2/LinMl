@@ -22,10 +22,11 @@ class Detect(APIView):
         object_model = YOLO('alpr/assets/best.pt')
         # character_model = YOLO('model/best.pt')
         character_model = YOLO('alpr/assets/yolov8n_char_new.pt')
-        self.char_classnames = ['0', '9', 'b', 'd', 'ein', 'ein', 'g', 'gh', 'h', 'n', 's', '1', 'malul', 'n', 's', 'sad',
-                           't',
-                           'ta',
-                           'v', 'y', '2'
+        self.char_classnames = ['0', '9', 'b', 'd', 'ein', 'ein', 'g', 'gh', 'h', 'n', 's', '1', 'malul', 'n', 's',
+                                'sad',
+                                't',
+                                'ta',
+                                'v', 'y', '2'
             , '3', '4', '5', '6', '7', '8']
         # self.char_classes = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹', 'ب', 'د', 'ع', 'ه', 'ج', 'ل', 'م', 'ن',
         #                      'ق', 'ص', 'س', 'ط', 'ت', 'و', 'ی', 'معلول'
@@ -133,3 +134,11 @@ class Detect(APIView):
         if serializer.is_valid(raise_exception=True):
             print(serializer.data)
             return JsonResponse(serializer.data, status=status.HTTP_200_OK)
+
+
+# simple health check for the alpr api
+class HealthCheck(APIView):
+    # permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        return JsonResponse({'status': 'healthy'}, status=status.HTTP_200_OK)
