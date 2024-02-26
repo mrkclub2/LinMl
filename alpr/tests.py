@@ -16,5 +16,9 @@ class ModelTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(json.loads(response.content)['results'][0]['plate'], '69s55613')
 
-        #
+    def test_health_check(self):
+        url = reverse("alpr-health")
 
+        # health check test
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)

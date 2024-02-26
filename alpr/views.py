@@ -137,7 +137,7 @@ class Detect(APIView):
 
 
 # simple health check for the alpr api
-class HealthCheck(APIView):
+class AlprHealthCheck(APIView):
     # permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
