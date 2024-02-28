@@ -1,8 +1,15 @@
+version: "3.8"
+
 services:
   web:
-    image: "linml:2.0.2"
+    image: "linml:2.0.3"
     command: python manage.py runserver 0.0.0.0:8000
+    restart: always
     volumes:
-      - .:/code
+      - alpr_volume:/code
     ports:
       - "8000:8000"
+
+volumes:
+  alpr_volume:
+
