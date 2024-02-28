@@ -21,7 +21,7 @@ class Detect(APIView):
         super().__init__(**kwargs)
         object_model = YOLO('alpr/assets/best.pt')
         # character_model = YOLO('model/best.pt')
-        character_model = YOLO('alpr/assets/yolov8n_char_new.pt')
+        character_model = YOLO('alpr/assets/bestV2m.pt')
         self.char_classnames = ['0', '9', 'b', 'd', 'ein', 'ein', 'g', 'gh', 'h', 'n', 's', '1', 'malul', 'n', 's',
                                 'sad',
                                 't',
@@ -94,13 +94,14 @@ class Detect(APIView):
                     values = bbox[:, 0].cpu().numpy().astype(int)
                     dictionary = list(zip(keys, values))
                     sorted_list = sorted(dictionary, key=lambda x: x[1])
+                    print(sorted_list)
 
                     # convert all characters to a string
                     for char in sorted_list:
                         char_class = char[0]
                         # char_display.append(plate_output[0].names[char_class])
-                        char_display.append(self.char_classnames[char_class])
-                        # char_display.append(self.character_model.names[char_class])
+                        # char_display.append(self.char_classnames[char_class])
+                        char_display.append(self.character_model.names[char_class])
                     char_result = (''.join(char_display))
 
                     # just show the correct characters in output
