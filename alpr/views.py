@@ -21,7 +21,7 @@ class Detect(APIView):
         super().__init__(**kwargs)
         object_model = YOLO('alpr/assets/best.pt')
         # character_model = YOLO('model/best.pt')
-        character_model = YOLO('alpr/assets/bestV2m.pt')
+        character_model = YOLO('alpr/assets/yolov8mN.pt')
         self.char_classnames = ['0', '9', 'b', 'd', 'ein', 'ein', 'g', 'gh', 'h', 'n', 's', '1', 'malul', 'n', 's',
                                 'sad',
                                 't',
@@ -127,9 +127,11 @@ class Detect(APIView):
                         ret, buf = cv2.imencode('.jpg', img)
                         licence_plate.processed_image.save(str(uuid.uuid4().hex) + '.jpg', ContentFile(buf.tobytes()),
                                                            save=False)
-                    licence_plate.save()
 
         end_processing = time.time()
+        licence_plate.processing_time = str(end_processing - start_processing)
+        licence_plate.save()
+
         serializer = AlprDetectionSerializer(
             data={'results': results, 'processing_time': float(end_processing - start_processing)})
         if serializer.is_valid(raise_exception=True):

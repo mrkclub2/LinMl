@@ -10,6 +10,7 @@ class LicencePlate(models.Model):
     score = models.CharField(max_length=5, blank=True, null=True)
     dscore = models.CharField(max_length=5, blank=True, null=True)
     time = models.DateTimeField(auto_now_add=True, blank=True, null=True)
+    processing_time = models.CharField(max_length=30, blank=True, null=True)
 
     def __str__(self):
         if self.plate_number:
