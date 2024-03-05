@@ -1,3 +1,4 @@
+import re
 import uuid
 
 from django.core.files.base import ContentFile
@@ -19,29 +20,35 @@ class Detect(APIView):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        object_model = YOLO('alpr/assets/best.pt')
+        self.plate_format = ('[1-9][0-9](?:be|dal|ein|he|jim|lam|mim|nun|qaf|sad|sin|ta|te|vav|ye|zhe)[0-9][0-9][0-9]['
+                             '0-9][0-9]')
+        object_model = YOLO('alpr/assets/car-model.engine')
         # character_model = YOLO('model/best.pt')
-        character_model = YOLO('alpr/assets/yolov8mN.pt')
-        self.char_classnames = ['0', '9', 'b', 'd', 'ein', 'ein', 'g', 'gh', 'h', 'n', 's', '1', 'malul', 'n', 's',
-                                'sad',
-                                't',
-                                'ta',
-                                'v', 'y', '2'
-            , '3', '4', '5', '6', '7', '8']
-        # self.char_classes = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹', 'ب', 'د', 'ع', 'ه', 'ج', 'ل', 'م', 'ن',
-        #                      'ق', 'ص', 'س', 'ط', 'ت', 'و', 'ی', 'معلول'
-        #                      ]
+
+        character_model = YOLO('alpr/assets/yolov8l.engine')
+        self.chars = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'be', 'dal', 'ein',
+                      'he', 'jim', 'lam', 'mim', 'nun', 'qaf', 'sad', 'sin', 'ta', 'te',
+                      'vav', 'ye', 'zhe']
+        # self.char_classnames = ['0', '9', 'b', 'd', 'ein', 'ein', 'g', 'gh', 'h', 'n', 's', '1', 'malul', 'n', 's',
+        #                         'sad',
+        #                         't',
+        #                         'ta',
+        #                         'v', 'y', '2'
+        #     , '3', '4', '5', '6', '7', '8']
+        self.char_classes = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹', 'ب', 'د', 'ع', 'ه', 'ج', 'ل', 'م', 'ن',
+                             'ق', 'ص', 'س', 'ط', 'ت', 'و', 'ی', 'معلول'
+                             ]
         self.object_model = object_model
         self.character_model = character_model
 
     def post(self, request, *args, **kwargs):
         start_processing = time.time()
         source = request.FILES['upload']
-        FileSystemStorage(location="/home/kokhaie/Pictures").save(source.name, source)
+        FileSystemStorage(location="/mnt/HDD/kokhaie/LinMl/Pictures").save(source.name, source)
         # FileSystemStorage(location="/tmp").save(source.name, source)
         licence_plate = LicencePlate.objects.create(initial_image=source)
         # source = '/tmp/{0}'.format(source.name)
-        source = '/home/kokhaie/Pictures/{0}'.format(source.name)
+        source = '/mnt/HDD/kokhaie/LinMl/Pictures/{0}'.format(source.name)
 
         img = cv2.imread(source)
         output = self.object_model(source)
@@ -80,7 +87,7 @@ class Detect(APIView):
                     ret, buf = cv2.imencode('.jpg', plate_img)
                     # detect characters of plate with YOLO model
 
-                    plate_output = self.character_model(plate_img)
+                    plate_output = self.character_model(plate_img, conf=0.5)
                     licence_plate.plate_image.save(str(uuid.uuid4().hex) + '.jpg', ContentFile(buf.tobytes()),
                                                    save=False)
 
@@ -91,8 +98,13 @@ class Detect(APIView):
                     cls = plate_output[0].boxes.cls
                     # make a dict and sort it from left to right to show the correct characters of plate
                     keys = cls.cpu().numpy().astype(int)
+                    print('score: ' + str(plate_output[0].boxes.conf.tolist()))
+
+                    print(keys)
                     values = bbox[:, 0].cpu().numpy().astype(int)
+                    print(values)
                     dictionary = list(zip(keys, values))
+                    print(dictionary)
                     sorted_list = sorted(dictionary, key=lambda x: x[1])
                     print(sorted_list)
 
@@ -100,9 +112,12 @@ class Detect(APIView):
                     for char in sorted_list:
                         char_class = char[0]
                         # char_display.append(plate_output[0].names[char_class])
-                        # char_display.append(self.char_classnames[char_class])
-                        char_display.append(self.character_model.names[char_class])
+                        char_display.append(self.chars[char_class])
+
                     char_result = (''.join(char_display))
+
+                    if not re.match(self.plate_format, char_result):
+                        return JsonResponse({}, status=status.HTTP_200_OK)
 
                     # just show the correct characters in output
                     if len(char_display) >= 8:
@@ -113,6 +128,8 @@ class Detect(APIView):
                                     lineType=cv2.LINE_AA)
 
                         score = math.ceil(np.mean(plate_output[0].boxes.conf.tolist()) * 100) / 100
+                        print('score: ' + str(plate_output[0].boxes.conf.tolist()))
+
                         box = {'xmin': x1, 'ymin': y1, 'xmax': x2, 'ymax': y2}
                         results.append({'box': box, 'plate': str(char_result),
                                         'score': score,
