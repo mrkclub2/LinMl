@@ -9,7 +9,7 @@ from rest_framework.views import APIView
 from rest_framework import status
 from django.http import JsonResponse
 from ultralytics import YOLO
-from alpr.models import LicencePlate
+from alpr.models import LicencePlate, NeedToTrain
 import time
 import math
 import cv2
@@ -65,6 +65,7 @@ class Detect(APIView):
             #     print('plate detected')
 
             for box in bbox:
+
                 x1, y1, x2, y2 = box.xyxy[0]
                 x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
                 cv2.rectangle(img, (x1, y1), (x2, y2), (255, 0, 0), 1)
@@ -81,6 +82,7 @@ class Detect(APIView):
                                 fontScale=0.6, color=(0, 20, 255), thickness=1, lineType=cv2.LINE_AA)
                 # check plate to recognize characters with YOLO model
                 if cls_names == 1:
+
                     char_display = []
                     # crop plate from frame
                     plate_img = img[y1:y2, x1:x2]
@@ -117,33 +119,43 @@ class Detect(APIView):
                     char_result = (''.join(char_display))
 
                     if not re.match(self.plate_format, char_result):
+                        end_processing = time.time()
+                        licence_plate.plate_number = char_result
+                        licence_plate.plate_image.save(str(uuid.uuid4().hex) + '.jpg', ContentFile(buf.tobytes()),
+                                                       save=False)
+                        licence_plate.processing_time = str(end_processing - start_processing)
+                        licence_plate.save()
+
+                        need2train = NeedToTrain.objects.create(initial_image=request.FILES['upload'])
+                        need2train.plate_image.save(str(uuid.uuid4().hex) + '.jpg', ContentFile(buf.tobytes()),
+                                                    save=False)
                         return JsonResponse({}, status=status.HTTP_200_OK)
 
-                    # just show the correct characters in output
-                    if len(char_display) >= 8:
-                        cv2.line(img, (max(40, x1 - 25), max(40, y1 - 10)), (x2 + 25, y1 - 10), (0, 0, 0), 20,
-                                 lineType=cv2.LINE_AA)
-                        cv2.putText(img, char_result, (max(40, x1 - 15), max(40, y1 - 5)),
-                                    fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=0.5, color=(10, 50, 255), thickness=1,
-                                    lineType=cv2.LINE_AA)
+                    # # just show the correct characters in output
+                    # if len(char_display) >= 8:
+                    cv2.line(img, (max(40, x1 - 25), max(40, y1 - 10)), (x2 + 25, y1 - 10), (0, 0, 0), 20,
+                             lineType=cv2.LINE_AA)
+                    cv2.putText(img, char_result, (max(40, x1 - 15), max(40, y1 - 5)),
+                                fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=0.5, color=(10, 50, 255), thickness=1,
+                                lineType=cv2.LINE_AA)
 
-                        score = math.ceil(np.mean(plate_output[0].boxes.conf.tolist()) * 100) / 100
-                        print('score: ' + str(plate_output[0].boxes.conf.tolist()))
+                    score = math.ceil(np.mean(plate_output[0].boxes.conf.tolist()) * 100) / 100
+                    print('score: ' + str(plate_output[0].boxes.conf.tolist()))
 
-                        box = {'xmin': x1, 'ymin': y1, 'xmax': x2, 'ymax': y2}
-                        results.append({'box': box, 'plate': str(char_result),
-                                        'score': score,
-                                        'dscore': confs})
-                        if score >= 0.7:
-                            licence_plate.identified = True
+                    box = {'xmin': x1, 'ymin': y1, 'xmax': x2, 'ymax': y2}
+                    results.append({'box': box, 'plate': str(char_result),
+                                    'score': score,
+                                    'dscore': confs})
+                    if score >= 0.7:
+                        licence_plate.identified = True
 
-                        licence_plate.plate_number = char_result
-                        licence_plate.score = str(score)
-                        licence_plate.dscore = str(confs)
+                    licence_plate.plate_number = char_result
+                    licence_plate.score = str(score)
+                    licence_plate.dscore = str(confs)
 
-                        ret, buf = cv2.imencode('.jpg', img)
-                        licence_plate.processed_image.save(str(uuid.uuid4().hex) + '.jpg', ContentFile(buf.tobytes()),
-                                                           save=False)
+                    ret, buf = cv2.imencode('.jpg', img)
+                    licence_plate.processed_image.save(str(uuid.uuid4().hex) + '.jpg', ContentFile(buf.tobytes()),
+                                                       save=False)
 
         end_processing = time.time()
         licence_plate.processing_time = str(end_processing - start_processing)

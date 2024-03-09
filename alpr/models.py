@@ -17,3 +17,8 @@ class LicencePlate(models.Model):
             return self.plate_number + ' --> ' + str(self.time.strftime("%Y-%m-%d %H:%M:%S"))
         else:
             return str(self.id) + ') unknown plate number' + ' --> ' + str(self.time.strftime("%Y-%m-%d %H:%M:%S"))
+
+
+class NeedToTrain(models.Model):
+    initial_image = models.ImageField(upload_to='need2train-car')
+    plate_image = models.ImageField(upload_to='need2train-plate')
