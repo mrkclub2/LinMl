@@ -3,13 +3,16 @@ import uuid
 
 from django.core.files.base import ContentFile
 
+from LinMl.settings import LABEL_STUDIO_URL, LABEL_STUDIO_API_KEY
 from alpr.serializers import AlprDetectionSerializer
+from label_studio_sdk import Client
 from django.core.files.storage import FileSystemStorage
 from rest_framework.views import APIView
 from rest_framework import status
 from django.http import JsonResponse
 from ultralytics import YOLO
 from alpr.models import LicencePlate, NeedToTrain
+import requests
 import time
 import math
 import cv2
@@ -26,6 +29,8 @@ class Detect(APIView):
         # character_model = YOLO('model/best.pt')
 
         character_model = YOLO('alpr/assets/yolov8l.engine')
+        self.ls = Client(url=LABEL_STUDIO_URL, api_key=LABEL_STUDIO_API_KEY)
+
         self.chars = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'be', 'dal', 'ein',
                       'he', 'jim', 'lam', 'mim', 'nun', 'qaf', 'sad', 'sin', 'ta', 'te',
                       'vav', 'ye', 'zhe']
@@ -59,11 +64,6 @@ class Detect(APIView):
         for i in output:
             bbox = i.boxes
 
-            # if 0 in list(map(int, bbox.cls.tolist())):
-            #     print('car detected')
-            # if 1 in list(map(int, bbox.cls.tolist())):
-            #     print('plate detected')
-
             for box in bbox:
 
                 x1, y1, x2, y2 = box.xyxy[0]
@@ -73,13 +73,7 @@ class Detect(APIView):
 
                 # convert detected object ids to int
                 cls_names = int(box.cls[0])
-                if cls_names == 1:
-                    cv2.putText(img, f'{confs}', (max(40, x2 + 5), max(40, y2 + 5)), fontFace=cv2.FONT_HERSHEY_TRIPLEX,
-                                fontScale=0.5, color=(0, 20, 255), thickness=1, lineType=cv2.LINE_AA)
 
-                elif cls_names == 0:
-                    cv2.putText(img, f'{confs}', (max(40, x1), max(40, y1)), fontFace=cv2.FONT_HERSHEY_TRIPLEX,
-                                fontScale=0.6, color=(0, 20, 255), thickness=1, lineType=cv2.LINE_AA)
                 # check plate to recognize characters with YOLO model
                 if cls_names == 1:
 
@@ -93,11 +87,10 @@ class Detect(APIView):
                     licence_plate.plate_image.save(str(uuid.uuid4().hex) + '.jpg', ContentFile(buf.tobytes()),
                                                    save=False)
 
-                    # print(plate_output[0].boxes)
-
                     # extract bounding box and class names
                     bbox = plate_output[0].boxes.xyxy
                     cls = plate_output[0].boxes.cls
+
                     # make a dict and sort it from left to right to show the correct characters of plate
                     keys = cls.cpu().numpy().astype(int)
                     print('score: ' + str(plate_output[0].boxes.conf.tolist()))
@@ -126,33 +119,37 @@ class Detect(APIView):
                         licence_plate.processing_time = str(end_processing - start_processing)
                         licence_plate.save()
 
+                        # sending unreadable plate to Label Studio
+                        requests.post(LABEL_STUDIO_URL, headers={
+                            "Authorization": "Token {0}".format(LABEL_STUDIO_API_KEY)},
+                                      files={"file": licence_plate.plate_image})
+
+                        # saving the initial and plate image on django admin
                         need2train = NeedToTrain.objects.create(initial_image=request.FILES['upload'])
                         need2train.plate_image.save(str(uuid.uuid4().hex) + '.jpg', ContentFile(buf.tobytes()),
                                                     save=False)
+
                         return JsonResponse({}, status=status.HTTP_200_OK)
 
-                    # # just show the correct characters in output
-                    # if len(char_display) >= 8:
-                    cv2.line(img, (max(40, x1 - 25), max(40, y1 - 10)), (x2 + 25, y1 - 10), (0, 0, 0), 20,
-                             lineType=cv2.LINE_AA)
-                    cv2.putText(img, char_result, (max(40, x1 - 15), max(40, y1 - 5)),
-                                fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=0.5, color=(10, 50, 255), thickness=1,
-                                lineType=cv2.LINE_AA)
-
+                    # calculate average score of all characters
                     score = math.ceil(np.mean(plate_output[0].boxes.conf.tolist()) * 100) / 100
                     print('score: ' + str(plate_output[0].boxes.conf.tolist()))
 
+                    # plate bounding box dictionary
                     box = {'xmin': x1, 'ymin': y1, 'xmax': x2, 'ymax': y2}
                     results.append({'box': box, 'plate': str(char_result),
                                     'score': score,
                                     'dscore': confs})
+
                     if score >= 0.7:
                         licence_plate.identified = True
 
+                    # saving plate information to the Model
                     licence_plate.plate_number = char_result
                     licence_plate.score = str(score)
                     licence_plate.dscore = str(confs)
 
+                    # save image to the Model
                     ret, buf = cv2.imencode('.jpg', img)
                     licence_plate.processed_image.save(str(uuid.uuid4().hex) + '.jpg', ContentFile(buf.tobytes()),
                                                        save=False)
@@ -161,6 +158,7 @@ class Detect(APIView):
         licence_plate.processing_time = str(end_processing - start_processing)
         licence_plate.save()
 
+        # serialize plate result for returning to ZM
         serializer = AlprDetectionSerializer(
             data={'results': results, 'processing_time': float(end_processing - start_processing)})
         if serializer.is_valid(raise_exception=True):

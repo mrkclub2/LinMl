@@ -123,3 +123,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 USERNAME = 'admin'
 PASSWORD = 'admin'
+
+# LABEL_STUDIO_URL = 'http://172.16.0.135:8080'
+LABEL_STUDIO_URL = 'http://172.16.0.135:8080/api/projects/4/import'
+LABEL_STUDIO_API_KEY = '0ecf79f5796567f7a0fe1dac43db62cbeb76f248'
+

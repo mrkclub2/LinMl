@@ -5,7 +5,7 @@ contourpy==1.2.0
 cycler==0.12.1
 dateparser==1.2.0
 dill==0.3.8
-Django==5.0.1
+Django==5.0.3
 djangorestframework==3.14.0
 djangorestframework-simplejwt==5.3.1
 filelock==3.13.1
@@ -69,3 +69,4 @@ tzlocal==5.2
 ultralytics==8.1.9
 urllib3==2.2.0
 websocket-client==1.7.0
+label-studio-sdk== 0.0.32
