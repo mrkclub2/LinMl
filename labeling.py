@@ -9,8 +9,12 @@ class Labeling():
     def __init__(self):
         self.car_plate_model = YOLO('alpr/assets/best.pt')
         self.char_model = YOLO('alpr/assets/bounding_box_model.pt')
+        self.export_label("testing", "test message")
 
-        self.main()
+        # check if there is error on converting or not
+        print(self.xyxy_to_xywh([10.11, 10.12, 10.13, 10.14]))
+
+        # self.main()
 
     def main(self):
         image_path = 'alpr/assets/car1.jpg'
@@ -85,26 +89,32 @@ class Labeling():
         except (KeyError, IndexError) as e:
             print(e)
 
+    # convert xyxy format to xywh (yolo train format)
+    # x,y is center of the object
+    # x1,y1,y2,x2 is corner of bounding boxes
+
     def xyxy_to_xywh(self, xyxy):
 
-        """
-        Convert XYXY format (x,y top left and x,y bottom right) to XYWH format (x,y center point and width, height).
-        :param xyxy: [X1, Y1, X2, Y2]
-        :return: [X, Y, W, H]
-        """
         if np.array(xyxy).ndim > 1 or len(xyxy) > 4:
             raise ValueError('xyxy format: [x1, y1, x2, y2]')
         x_temp = (xyxy[0] + xyxy[2]) / 2
         y_temp = (xyxy[1] + xyxy[3]) / 2
         w_temp = abs(xyxy[0] - xyxy[2])
         h_temp = abs(xyxy[1] - xyxy[3])
-        return np.array([int(x_temp), int(y_temp), int(w_temp), int(h_temp)])
+        return np.array([x_temp, y_temp, w_temp, h_temp])
 
-    def export_labeled_image(self):
-        # save image file ine images folder
+    def export_image(self, plate_image):
+        image = open('file.jpg', 'w')
+        image.write('what ever')
+        image.close()
 
-        # save text file in labels folder
-        pass
+    def export_label(self, file_name, text):
+        image = open('{0}.txt'.format(file_name), 'w')
+        image.write('what ever')
+        image.close()
+    # save image file ine images folder
+
+    # save text file in labels folder
 
 
 if __name__ == '__main__':
