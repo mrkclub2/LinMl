@@ -5,16 +5,15 @@ import os
 from ultralytics import YOLO
 
 
-class Labeling():
+class Labeling:
     def __init__(self):
         self.car_plate_model = YOLO('alpr/assets/best.pt')
         self.char_model = YOLO('alpr/assets/bounding_box_model.pt')
-        self.export_label("testing", "test message")
+        self.characters = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'be', 'dal', 'ein',
+                           'he', 'jim', 'lam', 'mim', 'non', 'ghaf', 'sad', 'sin', 'ta', 'te',
+                           'vav', 'ye', 'zhe', 'alef', 'se', 'pe', 'ze', 'shin']
 
-        # check if there is error on converting or not
-        print(self.xyxy_to_xywh([10.11, 10.12, 10.13, 10.14]))
-
-        # self.main()
+        self.main()
 
     def main(self):
         image_path = 'alpr/assets/car1.jpg'
@@ -60,8 +59,25 @@ class Labeling():
             raise ValueError('can not detect all bounding boxes or it is more than it should be')
 
         else:
+            label_text = ''
             for i, value in enumerate(values):
                 x1, y1, x2, y2 = bbox[results[0].boxes.xyxy[:, 0].tolist().index(value)].xyxy[0]
+
+                xywh_format = self.xyxy_to_xywh(
+                    [x1.cpu().numpy().astype(float), y1.cpu().numpy().astype(float), x2.cpu().numpy().astype(float),
+                     y2.cpu().numpy().astype(float)])
+
+                # go to next line when it is not at first line
+                if i != 0:
+                    label_text += '\n'
+
+                # convert to yolo label format (label x y w h)
+                label_text += '{} {} {} {} {}'.format(self.characters.index(chars[i]),
+                                                      xywh_format[0],
+                                                      xywh_format[1],
+                                                      xywh_format[2],
+                                                      xywh_format[3])
+
                 x1, y1, x2, y2 = math.ceil(x1), math.ceil(y1), math.ceil(x2), math.ceil(y2)
 
                 cv2.putText(plate_image, chars[i], ((x1 - 15), max(40, y1 - 5)),
@@ -69,7 +85,7 @@ class Labeling():
                             lineType=cv2.LINE_AA)
 
                 cv2.rectangle(plate_image, (x1, y1), (x2, y2), (255, 0, 0), 1)
-
+            self.export_label(image_name, label_text)
             cv2.imshow('test', plate_image)
             cv2.waitKey(0)
 
@@ -109,8 +125,13 @@ class Labeling():
         image.close()
 
     def export_label(self, file_name, text):
+
+        # remove .jpg from file name
+        if '.jpg' == file_name[-4:]:
+            file_name = file_name[:-4]
+
         image = open('{0}.txt'.format(file_name), 'w')
-        image.write('what ever')
+        image.write(text)
         image.close()
     # save image file ine images folder
 
