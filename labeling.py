@@ -16,8 +16,6 @@ class Labeling:
         self.main()
 
     def main(self):
-        image_path = 'alpr/assets/car1.jpg'
-
         for file in os.listdir("/home/kokhaie/Desktop/mr.soltani-v1/"):
             if file.endswith(".jpg"):
                 plate_img = self.crop_plate(os.path.join("/home/kokhaie/Desktop/mr.soltani-v1/", file))
@@ -55,8 +53,10 @@ class Labeling:
         bbox = results[0].boxes
         # print(bbox.index(value))
         if len(bbox) != 8:
+            print('can not detect all bounding boxes or it is more than it should be')
+            pass
             # send it to label studio
-            raise ValueError('can not detect all bounding boxes or it is more than it should be')
+            # raise ValueError('can not detect all bounding boxes or it is more than it should be')
 
         else:
             label_text = ''
@@ -73,21 +73,20 @@ class Labeling:
 
                 # convert to yolo label format (label x y w h)
                 label_text += '{} {} {} {} {}'.format(self.characters.index(chars[i]),
-                                                      xywh_format[0],
-                                                      xywh_format[1],
-                                                      xywh_format[2],
-                                                      xywh_format[3])
+                                                      x1.cpu().numpy().astype(float),
+                                                      y1.cpu().numpy().astype(float),
+                                                      x2.cpu().numpy().astype(float),
+                                                      y2.cpu().numpy().astype(float))
 
-                x1, y1, x2, y2 = math.ceil(x1), math.ceil(y1), math.ceil(x2), math.ceil(y2)
-
-                cv2.putText(plate_image, chars[i], ((x1 - 15), max(40, y1 - 5)),
-                            fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=0.5, color=(10, 50, 255), thickness=1,
-                            lineType=cv2.LINE_AA)
-
-                cv2.rectangle(plate_image, (x1, y1), (x2, y2), (255, 0, 0), 1)
+                # x1, y1, x2, y2 = math.ceil(x1), math.ceil(y1), math.ceil(x2), math.ceil(y2)
+                #
+                # cv2.putText(plate_image, chars[i], ((x1 - 15), max(40, y1 - 5)),
+                #             fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=0.5, color=(10, 50, 255), thickness=1,
+                #             lineType=cv2.LINE_AA)
+                #
+                # cv2.rectangle(plate_image, (x1, y1), (x2, y2), (255, 0, 0), 1)
             self.export_label(image_name, label_text)
-            cv2.imshow('test', plate_image)
-            cv2.waitKey(0)
+            self.export_image(image_name, plate_image)
 
     # export each char by sequence
     def plate_number_exporter(self, file_name):
@@ -119,10 +118,8 @@ class Labeling:
         h_temp = abs(xyxy[1] - xyxy[3])
         return np.array([x_temp, y_temp, w_temp, h_temp])
 
-    def export_image(self, plate_image):
-        image = open('file.jpg', 'w')
-        image.write('what ever')
-        image.close()
+    def export_image(self, image_name, plate_image):
+        cv2.imwrite(image_name, plate_image)
 
     def export_label(self, file_name, text):
 
