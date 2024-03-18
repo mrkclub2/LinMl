@@ -2,7 +2,7 @@ import re
 import uuid
 
 from django.core.files.base import ContentFile
-
+from imutils import resize
 from LinMl.settings import LABEL_STUDIO_URL, LABEL_STUDIO_API_KEY
 from alpr.serializers import AlprDetectionSerializer
 from label_studio_sdk import Client
@@ -25,12 +25,11 @@ class Detect(APIView):
         super().__init__(**kwargs)
         self.plate_format = ('[1-9][0-9](?:be|dal|ein|he|jim|lam|mim|nun|qaf|sad|sin|ta|te|vav|ye|zhe)[0-9][0-9][0-9]['
                              '0-9][0-9]')
-        object_model = YOLO('alpr/assets/car-model.engine')
+        object_model = YOLO('alpr/assets/car-model.pt', task='detect')
         # character_model = YOLO('model/best.pt')
 
-        character_model = YOLO('alpr/assets/yolov8l.engine')
+        character_model = YOLO('alpr/assets/yolov8l.engine', task='detect')
         self.ls = Client(url=LABEL_STUDIO_URL, api_key=LABEL_STUDIO_API_KEY)
-
         self.chars = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'be', 'dal', 'ein',
                       'he', 'jim', 'lam', 'mim', 'nun', 'qaf', 'sad', 'sin', 'ta', 'te',
                       'vav', 'ye', 'zhe']
@@ -41,8 +40,7 @@ class Detect(APIView):
         #                         'v', 'y', '2'
         #     , '3', '4', '5', '6', '7', '8']
         self.char_classes = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹', 'ب', 'د', 'ع', 'ه', 'ج', 'ل', 'م', 'ن',
-                             'ق', 'ص', 'س', 'ط', 'ت', 'و', 'ی', 'معلول'
-                             ]
+                             'ق', 'ص', 'س', 'ط', 'ت', 'و', 'ی', 'معلول']
         self.object_model = object_model
         self.character_model = character_model
 
@@ -56,7 +54,7 @@ class Detect(APIView):
         source = '/mnt/HDD/kokhaie/LinMl/Pictures/{0}'.format(source.name)
 
         img = cv2.imread(source)
-        output = self.object_model(source)
+        output = self.object_model(img)
 
         results = []
         # extract bounding box and class names
@@ -80,10 +78,13 @@ class Detect(APIView):
                     char_display = []
                     # crop plate from frame
                     plate_img = img[y1:y2, x1:x2]
-                    ret, buf = cv2.imencode('.jpg', plate_img)
+
+                    resized_image = resize(plate_img, width=100)
+
+                    ret, buf = cv2.imencode('.jpg', resized_image)
                     # detect characters of plate with YOLO model
 
-                    plate_output = self.character_model(plate_img, conf=0.5)
+                    plate_output = self.character_model(resized_image, conf=0.5)
                     licence_plate.plate_image.save(str(uuid.uuid4().hex) + '.jpg', ContentFile(buf.tobytes()),
                                                    save=False)
 
